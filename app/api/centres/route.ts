@@ -22,6 +22,19 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+export async function PUT(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, name, state, url } = await req.json();
+  if (!id || !name || !state) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+
+  const supabase = getSupabase();
+  const { error } = await supabase.from("centres").update({ name, state, url: url || null }).eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

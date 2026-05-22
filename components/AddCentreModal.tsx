@@ -4,18 +4,20 @@ import { useState } from "react";
 import { X, Plus, Save } from "lucide-react";
 
 interface Props {
+  existing?: { id: string; name: string; state: string; url?: string };
   onSaved: (centre: { id: string; name: string; state: string; url?: string }) => void;
   onClose: () => void;
 }
 
 const STATES = ["ACT", "NSW", "NT", "NZ", "QLD", "SA", "TAS", "VIC", "WA"];
 
-export default function AddCentreModal({ onSaved, onClose }: Props) {
-  const [name, setName] = useState("");
-  const [state, setState] = useState("");
-  const [url, setUrl] = useState("");
+export default function AddCentreModal({ existing, onSaved, onClose }: Props) {
+  const [name, setName] = useState(existing?.name ?? "");
+  const [state, setState] = useState(existing?.state ?? "");
+  const [url, setUrl] = useState(existing?.url ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const isEditing = !!existing;
 
   const generateId = (name: string) =>
     name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 30);
@@ -24,9 +26,9 @@ export default function AddCentreModal({ onSaved, onClose }: Props) {
     if (!name.trim() || !state) { setError("Name and state are required."); return; }
     setSaving(true);
     setError("");
-    const id = generateId(name);
+    const id = isEditing ? existing.id : generateId(name);
     const res = await fetch("/api/centres", {
-      method: "POST",
+      method: isEditing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, name: name.trim(), state, url: url.trim() || undefined }),
     });
@@ -41,7 +43,7 @@ export default function AddCentreModal({ onSaved, onClose }: Props) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-500" /> Add New Centre
+            <Plus className="w-5 h-5 text-indigo-500" /> {isEditing ? "Edit Centre" : "Add New Centre"}
           </h2>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-4 h-4 text-gray-500" />
@@ -90,7 +92,7 @@ export default function AddCentreModal({ onSaved, onClose }: Props) {
               <X className="w-4 h-4" /> Cancel
             </button>
             <button onClick={handleSave} disabled={saving} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-              <Save className="w-4 h-4" /> {saving ? "Saving…" : "Add Centre"}
+              <Save className="w-4 h-4" /> {saving ? "Saving…" : isEditing ? "Save Changes" : "Add Centre"}
             </button>
           </div>
         </div>

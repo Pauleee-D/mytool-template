@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Building2, MapPin, Search, X, LogIn, LogOut, ChevronDown, Mail, MessageSquare, ArrowLeftRight, ArrowUpRight, Eye, EyeOff, Sun, Moon, Plus, Trash2 } from "lucide-react";
+import { Building2, MapPin, Search, X, LogIn, LogOut, ChevronDown, Mail, MessageSquare, ArrowLeftRight, ArrowUpRight, Eye, EyeOff, Sun, Moon, Plus, Trash2, Pencil } from "lucide-react";
 import EmailTab from "@/components/EmailTab";
 import SmsTab from "@/components/SmsTab";
 import type { SmsOption } from "@/components/SmsTab";
@@ -28,6 +28,7 @@ export default function Home() {
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAddCentre, setShowAddCentre] = useState(false);
+  const [editingCentre, setEditingCentre] = useState<Centre | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [emailTemplates, setEmailTemplates] = useState<Record<string, string>>({});
@@ -211,13 +212,22 @@ export default function Home() {
                             <span className="text-xs text-gray-400 ml-2 shrink-0">{c.state}</span>
                           </button>
                           {isAdmin && (
-                            <button
-                              onMouseDown={(e) => { e.preventDefault(); handleDeleteCentre(c); }}
-                              className="ml-2 p-1 text-gray-300 hover:text-red-500 transition-colors shrink-0"
-                              title="Delete centre"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1 ml-2 shrink-0">
+                              <button
+                                onMouseDown={(e) => { e.preventDefault(); setEditingCentre(c); setDropdownOpen(false); }}
+                                className="p-1 text-gray-300 hover:text-indigo-500 transition-colors"
+                                title="Edit centre"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onMouseDown={(e) => { e.preventDefault(); handleDeleteCentre(c); }}
+                                className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                                title="Delete centre"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -391,6 +401,17 @@ export default function Home() {
         <AddCentreModal
           onSaved={(centre) => setCentres((p) => [...p, centre])}
           onClose={() => setShowAddCentre(false)}
+        />
+      )}
+      {editingCentre && (
+        <AddCentreModal
+          existing={editingCentre}
+          onSaved={(updated) => {
+            setCentres((p) => p.map((c) => c.id === updated.id ? updated : c));
+            if (selectedCentre?.id === updated.id) setSelectedCentre(updated);
+            setSearch(updated.name);
+          }}
+          onClose={() => setEditingCentre(null)}
         />
       )}
     </div>
