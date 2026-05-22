@@ -296,12 +296,12 @@ export default function Home() {
           <section className="animate-slideUp">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="flex items-center gap-4 flex-1">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
                     <Building2 className="w-6 h-6 text-white" />
                   </div>
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-bold text-gray-900 break-words">{selectedCentre.name}</h2>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{selectedCentre.name}</h2>
                     <p className="text-sm text-gray-400 mt-0.5">{selectedCentre.state}</p>
                   </div>
                 </div>
