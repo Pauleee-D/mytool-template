@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Building2, MapPin, Search, X, LogIn, LogOut, ChevronDown, Mail, MessageSquare, ArrowLeftRight, ArrowUpRight, Eye, EyeOff, Sun, Moon } from "lucide-react";
-import { centres, states } from "@/data/centres-list";
-import type { Centre } from "@/data/centres-list";
+import { Building2, MapPin, Search, X, LogIn, LogOut, ChevronDown, Mail, MessageSquare, ArrowLeftRight, ArrowUpRight, Eye, EyeOff, Sun, Moon, Plus, Trash2 } from "lucide-react";
 import EmailTab from "@/components/EmailTab";
 import SmsTab from "@/components/SmsTab";
 import type { SmsOption } from "@/components/SmsTab";
@@ -13,19 +11,23 @@ import VenueTab from "@/components/VenueTab";
 import Modal from "@/components/Modal";
 import InfoSection from "@/components/InfoSection";
 import CentreLinks from "@/components/CentreLinks";
+import AddCentreModal from "@/components/AddCentreModal";
 
-type Modal = "email" | "sms" | "venue" | "knowledge" | null;
+type Centre = { id: string; name: string; state: string; url?: string };
+type ModalType = "email" | "sms" | "venue" | "knowledge" | null;
 
 export default function Home() {
   const { data: session } = useSession();
   const isAdmin = !!session;
   const router = useRouter();
 
+  const [centres, setCentres] = useState<Centre[]>([]);
   const [search, setSearch] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedCentre, setSelectedCentre] = useState<Centre | null>(null);
-  const [openModal, setOpenModal] = useState<Modal>(null);
+  const [openModal, setOpenModal] = useState<ModalType>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showAddCentre, setShowAddCentre] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [emailTemplates, setEmailTemplates] = useState<Record<string, string>>({});
@@ -38,6 +40,7 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
+    fetch("/api/centres").then((r) => r.json()).then(setCentres);
     fetch("/api/templates").then((r) => r.json()).then(setEmailTemplates);
     fetch("/api/sms-templates").then((r) => r.json()).then(setSmsTemplates);
     fetch("/api/venue-numbers").then((r) => r.json()).then(setVenueNumbers);
@@ -46,7 +49,6 @@ export default function Home() {
     fetch("/api/centre-links").then((r) => r.json()).then(setCentreLinks);
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -56,6 +58,8 @@ export default function Home() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const states = [...new Set(centres.map((c) => c.state))].sort();
 
   const filteredCentres = centres
     .filter((c) => {
@@ -79,6 +83,17 @@ export default function Home() {
     setSearch("");
     setSelectedState("");
     setDropdownOpen(false);
+  };
+
+  const handleDeleteCentre = async (centre: Centre) => {
+    if (!confirm(`Delete "${centre.name}"? This cannot be undone.`)) return;
+    await fetch("/api/centres", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: centre.id }),
+    });
+    setCentres((p) => p.filter((c) => c.id !== centre.id));
+    if (selectedCentre?.id === centre.id) handleClear();
   };
 
   const centreEmail = selectedCentre ? (emailTemplates[selectedCentre.id] ?? "") : "";
@@ -181,18 +196,30 @@ export default function Home() {
                   />
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 pointer-events-none" />
 
-                  {/* Dropdown list */}
                   {dropdownOpen && filteredCentres.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto animate-slideUp">
                       {filteredCentres.map((c) => (
-                        <button
+                        <div
                           key={c.id}
-                          onMouseDown={(e) => { e.preventDefault(); handleSelectCentre(c); }}
-                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-indigo-50 transition-colors flex items-center justify-between ${selectedCentre?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700"}`}
+                          className={`flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition-colors ${selectedCentre?.id === c.id ? "bg-indigo-50" : ""}`}
                         >
-                          <span>{c.name}</span>
-                          <span className="text-xs text-gray-400 ml-2 shrink-0">{c.state}</span>
-                        </button>
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); handleSelectCentre(c); }}
+                            className={`flex-1 text-left text-sm flex items-center justify-between ${selectedCentre?.id === c.id ? "text-indigo-700 font-medium" : "text-gray-700"}`}
+                          >
+                            <span>{c.name}</span>
+                            <span className="text-xs text-gray-400 ml-2 shrink-0">{c.state}</span>
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onMouseDown={(e) => { e.preventDefault(); handleDeleteCentre(c); }}
+                              className="ml-2 p-1 text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                              title="Delete centre"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -215,6 +242,18 @@ export default function Home() {
                   </button>
                 </div>
               )}
+
+              {/* Add Centre (admin only) */}
+              {isAdmin && (
+                <div className="sm:flex sm:items-end">
+                  <button
+                    onClick={() => setShowAddCentre(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Add Centre
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -229,15 +268,22 @@ export default function Home() {
             </div>
             <h2 className="text-2xl font-bold text-gray-300 mb-2">No Centre Selected</h2>
             <p className="text-gray-400 text-center max-w-sm text-sm">
-              Search for a leisure centre above to view its templates and contact details.
+              Search for a centre above to view its templates and contact details.
             </p>
+            {isAdmin && centres.length === 0 && (
+              <button
+                onClick={() => setShowAddCentre(true)}
+                className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add your first centre
+              </button>
+            )}
           </section>
         )}
 
         {/* Centre details */}
         {selectedCentre && (
           <section className="animate-slideUp">
-            {/* Centre header card */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
@@ -259,9 +305,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tool cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Email */}
               <button
                 onClick={() => setOpenModal("email")}
                 className="tool-card group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
@@ -276,7 +320,6 @@ export default function Home() {
                 <p className="text-xs text-gray-400">View &amp; copy email template</p>
               </button>
 
-              {/* SMS */}
               <button
                 onClick={() => setOpenModal("sms")}
                 className="tool-card group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
@@ -291,7 +334,6 @@ export default function Home() {
                 <p className="text-xs text-gray-400">View &amp; copy SMS options</p>
               </button>
 
-              {/* Venue Transfer */}
               <button
                 onClick={() => setOpenModal("venue")}
                 className="tool-card group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
@@ -307,8 +349,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Opening Hours + General Information */}
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end mb-2 mt-5">
               <button
                 onClick={() => setShowInfo((v) => !v)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg text-xs font-medium transition-colors"
@@ -333,60 +374,25 @@ export default function Home() {
         {/* Modals */}
         {selectedCentre && (
           <>
-            <Modal
-              open={openModal === "email"}
-              onClose={() => setOpenModal(null)}
-              title="Email Template"
-              subtitle={selectedCentre.name}
-              icon={<Mail className="w-5 h-5 text-purple-600" />}
-              iconBg="bg-purple-50"
-              maxWidth="max-w-5xl"
-            >
-              <EmailTab
-                centreId={selectedCentre.id}
-                emailText={centreEmail}
-                isAdmin={isAdmin}
-                onSaved={(html) => setEmailTemplates((p) => ({ ...p, [selectedCentre.id]: html }))}
-              />
+            <Modal open={openModal === "email"} onClose={() => setOpenModal(null)} title="Email Template" subtitle={selectedCentre.name} icon={<Mail className="w-5 h-5 text-purple-600" />} iconBg="bg-purple-50" maxWidth="max-w-5xl">
+              <EmailTab centreId={selectedCentre.id} emailText={centreEmail} isAdmin={isAdmin} onSaved={(html) => setEmailTemplates((p) => ({ ...p, [selectedCentre.id]: html }))} />
             </Modal>
-
-            <Modal
-              open={openModal === "sms"}
-              onClose={() => setOpenModal(null)}
-              title="SMS Templates"
-              subtitle={selectedCentre.name}
-              icon={<MessageSquare className="w-5 h-5 text-emerald-800" />}
-              iconBg="bg-emerald-50"
-              maxWidth="max-w-5xl"
-            >
-              <SmsTab
-                centreId={selectedCentre.id}
-                options={centreSms}
-                isAdmin={isAdmin}
-                onSaved={(opts) => setSmsTemplates((p) => ({ ...p, [selectedCentre.id]: opts }))}
-              />
+            <Modal open={openModal === "sms"} onClose={() => setOpenModal(null)} title="SMS Templates" subtitle={selectedCentre.name} icon={<MessageSquare className="w-5 h-5 text-emerald-800" />} iconBg="bg-emerald-50" maxWidth="max-w-5xl">
+              <SmsTab centreId={selectedCentre.id} options={centreSms} isAdmin={isAdmin} onSaved={(opts) => setSmsTemplates((p) => ({ ...p, [selectedCentre.id]: opts }))} />
             </Modal>
-
-            <Modal
-              open={openModal === "venue"}
-              onClose={() => setOpenModal(null)}
-              title="Venue Transfer Number"
-              subtitle={selectedCentre.name}
-              icon={<ArrowLeftRight className="w-5 h-5 text-indigo-600" />}
-              iconBg="bg-indigo-50"
-              maxWidth="max-w-md"
-            >
-              <VenueTab
-                centreId={selectedCentre.id}
-                number={centreVenue}
-                isAdmin={isAdmin}
-                onSaved={(num) => setVenueNumbers((p) => ({ ...p, [selectedCentre.id]: num }))}
-              />
+            <Modal open={openModal === "venue"} onClose={() => setOpenModal(null)} title="Venue Transfer Number" subtitle={selectedCentre.name} icon={<ArrowLeftRight className="w-5 h-5 text-indigo-600" />} iconBg="bg-indigo-50" maxWidth="max-w-md">
+              <VenueTab centreId={selectedCentre.id} number={centreVenue} isAdmin={isAdmin} onSaved={(num) => setVenueNumbers((p) => ({ ...p, [selectedCentre.id]: num }))} />
             </Modal>
-
           </>
         )}
       </main>
+
+      {showAddCentre && (
+        <AddCentreModal
+          onSaved={(centre) => setCentres((p) => [...p, centre])}
+          onClose={() => setShowAddCentre(false)}
+        />
+      )}
     </div>
     </div>
   );
