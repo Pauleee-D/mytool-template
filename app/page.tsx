@@ -301,7 +301,7 @@ export default function Home() {
                     <Building2 className="w-6 h-6 text-white" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-xl font-bold text-gray-900 truncate">{selectedCentre.name}</h2>
+                    <h2 className="text-xl font-bold text-gray-900 break-words">{selectedCentre.name}</h2>
                     <p className="text-sm text-gray-400 mt-0.5">{selectedCentre.state}</p>
                   </div>
                 </div>
